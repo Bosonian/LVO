@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LVO Risk Calculator</title>
+    <style>
+        :root {
+            --primary-color: #3498db; --primary-hover: #2980b9; --background-color: #f4f7f9;
+            --container-bg: #ffffff; --text-color: #333; --border-color: #dee2e6; --input-bg: #f8f9fa;
+            --result-green-bg: #d4edda; --result-green-text: #155724; --result-green-border: #28a745;
+            --result-amber-bg: #fff3cd; --result-amber-text: #856404; --result-amber-border: #ffc107;
+            --result-red-bg: #f8d7da; --result-red-text: #721c24; --result-red-border: #dc3545;
+            --driver-positive-bg: #e74c3c; --driver-negative-bg: #3498db;
+            --meter-green: #28a745; --meter-yellow: #ffc107; --meter-red: #dc3545;
+        }
+
+        body.dark-mode {
+            --primary-color: #409eff; --primary-hover: #3a8ee6; --background-color: #121212;
+            --container-bg: #1e1e1e; --text-color: #f1f1f1; --border-color: #444; --input-bg: #2a2a2a;
+
+            --result-green-bg: #2a5032; --result-green-text: #c3e6cb; --result-green-border: #2ecc71;
+            --result-amber-bg: #4d442a; --result-amber-text: #ffeeba; --result-amber-border: #f1c40f;
+            --result-red-bg: #5c2a30; --result-red-text: #f5c6cb; --result-red-border: #f56c6c;
+            --driver-bar-container-bg: #555;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; margin: 0; padding: 80px 15px 40px; background-color: var(--background-color); color: var(--text-color); transition: background-color 0.3s, color 0.3s; }
+        .container { max-width: 700px; margin: 0 auto; padding: 25px; background-color: var(--container-bg); border-radius: 12px; box-shadow: 0 6px 12px rgba(0,0,0,0.1); border: 1px solid var(--border-color); transition: background-color 0.3s, border-color 0.3s; }
+        .app-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 25px; background-color: var(--container-bg); box-shadow: 0 2px 4px rgba(0,0,0,0.05); position: fixed; top: 0; left: 0; right: 0; z-index: 1000; border-bottom: 1px solid var(--border-color); transition: background-color 0.3s, border-color 0.3s; }
+        .app-header h1 { font-size: 1.4em; margin: 0; color: var(--primary-color); }
+        .header-right { display: flex; align-items: center; gap: 15px; }
+        .language-switcher button { background: none; border: none; padding: 5px; cursor: pointer; opacity: 0.7; transition: opacity 0.2s; }
+        .language-switcher button:hover { opacity: 1; }
+        .language-switcher img { width: 24px; height: 16px; border-radius: 3px; vertical-align: middle; }
+        #darkModeToggle { background: none; border: none; color: var(--text-color); font-size: 1.5rem; line-height: 1; cursor: pointer; padding: 8px; }
+        h2 { text-align: center; margin-bottom: 25px; }
+        .input-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; }
+        .input-group, .checkbox-group { padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; background-color: var(--input-bg); }
+        .checkbox-group label { display: flex; align-items: center; cursor: pointer; font-weight: normal; height: 100%;}
+        input[type="checkbox"] { width: 1.3em; height: 1.3em; margin-right: 12px; accent-color: var(--primary-color); }
+        label { display: block; margin-bottom: 6px; font-weight: bold; }
+        input[type="number"] { width: 100%; padding: 10px; font-size: 16px; border: 1px solid var(--border-color); border-radius: 5px; background-color: var(--container-bg); color: var(--text-color); }
+        input:focus { border-color: var(--primary-color); outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 25%, transparent); }
+        button.primary { padding: 14px; margin-top: 25px; border: none; border-radius: 8px; cursor: pointer; font-size: 1.1em; transition: background-color 0.3s ease; width: 100%; font-weight: bold; background-color: var(--primary-color); color: white; }
+        button.primary:hover:not(:disabled) { background-color: var(--primary-hover); }
+        button.primary:disabled { background-color: #a0a0a0; cursor: wait; }
+        .result { margin-top: 25px; padding: 20px; border-radius: 8px; text-align: center; border-left: 5px solid; display: none; opacity: 0; transition: opacity 0.5s ease-in-out; }
+        .result.visible { display: block; opacity: 1; }
+        .result.high-risk { background-color: var(--result-red-bg); color: var(--result-red-text); border-left-color: var(--result-red-border); }
+        .result.medium-risk { background-color: var(--result-amber-bg); color: var(--result-amber-text); border-left-color: var(--result-amber-border); }
+        .result.low-risk { background-color: var(--result-green-bg); color: var(--result-green-text); border-left-color: var(--result-green-border); }
+        .probability-meter-container { width: 100%; height: 25px; background: linear-gradient(to right, var(--meter-green) 25%, var(--meter-yellow) 50%, var(--meter-red) 100%); border-radius: 15px; position: relative; margin: 20px 0 30px 0; box-shadow: inset 0 1px 3px rgba(0,0,0,0.2); }
+        .probability-meter-marker { position: absolute; top: -5px; bottom: -5px; width: 6px; background-color: var(--text-color); border: 2px solid var(--container-bg); border-radius: 3px; box-shadow: 0 0 5px rgba(0,0,0,0.5); transition: left 0.5s ease-out; }
+        .probability-meter-label { position: absolute; bottom: 100%; transform: translateX(-50%); font-size: 1.1em; font-weight: bold; padding-bottom: 5px; }
+        #drivers-section { margin-top: 25px; padding-top: 15px; border-top: 1px solid var(--border-color); }
+        #drivers-section h3 { text-align: center; margin-bottom: 15px; }
+        #drivers-columns { display: flex; gap: 20px; flex-wrap: wrap; }
+        .driver-column { flex: 1; min-width: 250px; }
+        .driver-column h4 { margin-top: 0; text-align: center; font-size: 1em; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; }
+        .driver-item { display: flex; align-items: center; margin: 10px 0; gap: 8px; }
+        .driver-label { flex-shrink: 0; width: 40%; text-align: right; font-size: 0.9em; overflow: hidden; text-overflow: ellipsis; padding-right: 5px; }
+        .driver-bar-container { flex-grow: 1; height: 18px; background-color: #efefef; border-radius: 5px; overflow: hidden; }
+        body.dark-mode .driver-bar-container { background-color: var(--driver-bar-container-bg); }
+        .driver-bar { height: 100%; border-radius: 5px; transition: width 0.5s ease-out; width: 0; }
+        .driver-bar.positive { background-color: var(--driver-positive-bg); }
+        .driver-bar.negative { background-color: var(--driver-negative-bg); }
+        .error-message { color: var(--result-red-text); background-color: var(--result-red-bg); padding: 12px; border: 1px solid var(--result-red-border); border-radius: 6px; display: none; margin-top: 20px; }
+    </style>
+</head>
+<body>
+
+    <header class="app-header">
+        <h1 data-translate="appTitle">LVO Risk Calculator</h1>
+        <div class="header-right">
+             <div class="language-switcher">
+                 <button onclick="switchLanguage('en')" aria-label="Switch to English"><img src="https://flagcdn.com/gb.svg" alt="English Flag"></button>
+                 <button onclick="switchLanguage('de')" aria-label="Switch to German"><img src="https://flagcdn.com/de.svg" alt="German Flag"></button>
+             </div>
+             <button id="darkModeToggle" aria-label="Toggle dark mode">🌙</button>
+        </div>
+    </header>
+
+    <main class="container">
+        <h2 data-translate="pageTitle">LVO Probability Assessment</h2>
+        <form id="lvo-form">
+            <div class="input-grid">
+                <!-- Full set of inputs required by the LVO API -->
+                <div class="input-group"><label for="gfap_value" data-translate="gfapLabel">GFAP Value (pg/mL)</label><input type="number" id="gfap_value" required></div>
+                <div class="input-group"><label for="age_years" data-translate="ageLabel">Age (years)</label><input type="number" id="age_years" required></div>
+                <div class="input-group"><label for="systolic_bp" data-translate="sbpLabel">Systolic BP</label><input type="number" id="systolic_bp" required></div>
+                <div class="input-group"><label for="diastolic_bp" data-translate="dbpLabel">Diastolic BP</label><input type="number" id="diastolic_bp" required></div>
+                <div class="input-group"><label for="fast_ed_score" data-translate="fastEdLabel">FAST-ED Score</label><input type="number" id="fast_ed_score" min="0" max="10" required></div>
+                <div class="checkbox-group"><label><input type="checkbox" id="headache"><span data-translate="headacheLabel">Headache</span></label></div>
+                <div class="checkbox-group"><label><input type="checkbox" id="eye_deviation"><span data-translate="eyeDeviationLabel">Eye Deviation</span></label></div>
+                <div class="checkbox-group"><label><input type="checkbox" id="armparese"><span data-translate="armpareseLabel">Arm Paresis</span></label></div>
+                <div class="checkbox-group"><label><input type="checkbox" id="beinparese"><span data-translate="beinpareseLabel">Leg Paresis</span></label></div>
+                <div class="checkbox-group"><label><input type="checkbox" id="atrial_fibrillation"><span data-translate="afibLabel">Atrial Fibrillation</span></label></div>
+                <div class="checkbox-group"><label><input type="checkbox" id="antiplatelets"><span data-translate="antiplateletsLabel">On Antiplatelets</span></label></div>
+                <div class="checkbox-group"><label><input type="checkbox" id="vigilanzminderung"><span data-translate="vigilanceLabel">Vigilance Reduction</span></label></div>
+                <div class="checkbox-group"><label><input type="checkbox" id="antcoagulated_noak"><span data-translate="noakLabel">On NOAK</span></label></div>
+            </div>
+            <button type="submit" id="calculate-btn" class="primary" data-translate="calculateButton">Calculate LVO Probability</button>
+        </form>
+        <p id="error-message" class="error-message"></p>
+        <div class="result" id="result-container">
+            <h3 id="result-title"></h3>
+            <div class="probability-meter-container">
+                <div class="probability-meter-marker" id="prob-meter-marker"></div> 
+                <span class="probability-meter-label" id="prob-meter-label"></span>
+            </div>
+            <section id="drivers-section">
+                <h3 data-translate="driversTitle">Prediction Drivers</h3>
+                <div id="drivers-columns">
+                    <div class="driver-column"><h4 data-translate="increasingRisk">Factors Increasing Risk</h4><div id="positive-drivers"></div></div>
+                    <div class="driver-column"><h4 data-translate="decreasingRisk">Factors Decreasing Risk</h4><div id="negative-drivers"></div></div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <script>
+        // --- CONFIGURATION ---
+        const CONFIG = {
+            api: {
+                prediction: 'https://lvo-ppv-service-564499947017.europe-west3.run.app/predict',
+                explanation: 'https://lvo-ppv-service-564499947017.europe-west3.run.app/explain'
+            },
+            dom: {
+                form: document.getElementById('lvo-form'),
+                calculateBtn: document.getElementById('calculate-btn'),
+                errorMsg: document.getElementById('error-message'),
+                resultContainer: document.getElementById('result-container'),
+                resultTitle: document.getElementById('result-title'),
+                meterMarker: document.getElementById('prob-meter-marker'),
+                meterLabel: document.getElementById('prob-meter-label'),
+                positiveDrivers: document.getElementById('positive-drivers'),
+                negativeDrivers: document.getElementById('negative-drivers'),
+            }
+        };
+
+        const translations = {
+            en: {
+                appTitle: "LVO Risk Calculator", pageTitle: "LVO Probability Assessment",
+                gfapLabel: "GFAP Value (pg/mL)", ageLabel: "Age (years)", sbpLabel: "Systolic BP", dbpLabel: "Diastolic BP", fastEdLabel: "FAST-ED Score",
+                headacheLabel: "Headache", eyeDeviationLabel: "Eye Deviation", armpareseLabel: "Arm Paresis", beinpareseLabel: "Leg Paresis",
+                afibLabel: "Atrial Fibrillation", antiplateletsLabel: "On Antiplatelets", vigilanceLabel: "Vigilance Reduction", noakLabel: "On NOAK",
+                calculateButton: "Calculate LVO Probability",
+                driversTitle: "Prediction Drivers", increasingRisk: "Factors Increasing Risk", decreasingRisk: "Factors Decreasing Risk",
+                lowRisk: "Low Probability of LVO (<25%)", mediumRisk: "Medium Probability of LVO (25-50%)", highRisk: "High Probability of LVO (>50%)",
+                featureNames: { 'gfap_value': 'GFAP', 'age_years': 'Age', 'systolic_bp': 'Systolic BP', 'diastolic_bp': 'Diastolic BP', 'fast_ed_score': 'FAST-ED Score', 'headache': 'Headache', 'eye_deviation': 'Eye Deviation', 'armparese': 'Arm Paresis', 'beinparese': 'Leg Paresis', 'atrial_fibrillation': 'AFib History', 'antiplatelets': 'Antiplatelets', 'vigilanzminderung': 'Vigilance Reduction', 'antcoagulated_noak': 'On NOAK' },
+                invalidInput: "Please enter a valid number for ",
+            },
+            de: {
+                appTitle: "LVO-Risikorechner", pageTitle: "LVO-Wahrscheinlichkeitsbewertung",
+                gfapLabel: "GFAP-Wert (pg/mL)", ageLabel: "Alter (Jahre)", sbpLabel: "Systolischer RR", dbpLabel: "Diastolischer RR", fastEdLabel: "FAST-ED Score",
+                headacheLabel: "Kopfschmerzen", eyeDeviationLabel: "Blickdeviation", armpareseLabel: "Armparese", beinpareseLabel: "Beinparese",
+                afibLabel: "Vorhofflimmern", antiplateletsLabel: "Plättchenhemmer", vigilanceLabel: "Vigilanzminderung", noakLabel: "Unter NOAK",
+                calculateButton: "LVO-Wahrscheinlichkeit berechnen",
+                driversTitle: "Treiber der Vorhersage", increasingRisk: "Risikoerhöhende Faktoren", decreasingRisk: "Risikomindernde Faktoren",
+                lowRisk: "Geringe Wahrscheinlichkeit für LVO (<25%)", mediumRisk: "Mittlere Wahrscheinlichkeit für LVO (25-50%)", highRisk: "Hohe Wahrscheinlichkeit für LVO (>50%)",
+                featureNames: { 'gfap_value': 'GFAP', 'age_years': 'Alter', 'systolic_bp': 'Systol. RR', 'diastolic_bp': 'Diastol. RR', 'fast_ed_score': 'FAST-ED Score', 'headache': 'Kopfschmerzen', 'eye_deviation': 'Blickdeviation', 'armparese': 'Armparese', 'beinparese': 'Beinparese', 'atrial_fibrillation': 'Vorhofflimmern', 'antiplatelets': 'Plättchenhemmer', 'vigilanzminderung': 'Vigilanzminderung', 'antcoagulated_noak': 'Unter NOAK' },
+                invalidInput: "Bitte geben Sie eine gültige Zahl ein für ",
+            }
+        };
+
+        // --- INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedLang = localStorage.getItem('language');
+            const browserLang = navigator.language.startsWith('de') ? 'de' : 'en';
+            switchLanguage(savedLang || browserLang);
+
+            const savedTheme = localStorage.getItem('darkMode');
+            if (savedTheme === 'enabled' || (savedTheme === null && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.body.classList.add('dark-mode');
+                document.getElementById('darkModeToggle').textContent = '☀️';
+            }
+            
+            CONFIG.dom.form.addEventListener('submit', handleCalculate);
+            document.getElementById('darkModeToggle').addEventListener('click', toggleDarkMode);
+        });
+
+        // --- CORE LOGIC ---
+        async function handleCalculate(event) {
+            event.preventDefault();
+            setLoading(true);
+            CONFIG.dom.errorMsg.style.display = 'none';
+            CONFIG.dom.resultContainer.classList.remove('visible');
+
+            const inputs = collectInputs();
+            if (!inputs) {
+                setLoading(false);
+                return;
+            }
+
+            try {
+                const fetchOptions = {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(inputs)
+                };
+
+                const [predResponse, explResponse] = await Promise.all([
+                    fetch(CONFIG.api.prediction, fetchOptions),
+                    fetch(CONFIG.api.explanation, fetchOptions)
+                ]);
+
+                if (!predResponse.ok || !explResponse.ok) {
+                    throw new Error(`API request failed. Prediction: ${predResponse.status}, Explanation: ${explResponse.status}`);
+                }
+
+                const predJson = await predResponse.json();
+                const explJson = await explResponse.json();
+                
+                displayResults(predJson.lvo_probability, explJson.feature_impacts);
+
+            } catch (error) {
+                console.error("LVO calculation error:", error);
+                CONFIG.dom.errorMsg.textContent = error.message;
+                CONFIG.dom.errorMsg.style.display = 'block';
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        function collectInputs() {
+            const data = {};
+            const allIds = Object.keys(translations.en.featureNames);
+            for (const id of allIds) {
+                const el = document.getElementById(id);
+                if (el.type === 'checkbox') {
+                    data[id] = el.checked ? 1 : 0;
+                } else {
+                    const val = parseFloat(el.value);
+                    if (isNaN(val)) {
+                        const labelText = document.querySelector(`label[for=${id}]`).textContent;
+                        CONFIG.dom.errorMsg.textContent = `${translations[window.currentLang].invalidInput} "${labelText}".`;
+                        CONFIG.dom.errorMsg.style.display = 'block';
+                        return null;
+                    }
+                    data[id] = val;
+                }
+            }
+            return data;
+        }
+
+        function displayResults(probability, impacts) {
+            const { resultContainer, resultTitle, meterMarker, meterLabel } = CONFIG.dom;
+            const t = translations[window.currentLang];
+            
+            let decisionClass, decisionTextKey;
+            if (probability < 0.25) {
+                decisionClass = 'low-risk'; decisionTextKey = 'lowRisk';
+            } else if (probability < 0.50) {
+                decisionClass = 'medium-risk'; decisionTextKey = 'mediumRisk';
+            } else {
+                decisionClass = 'high-risk'; decisionTextKey = 'highRisk';
+            }
+
+            resultContainer.className = `result ${decisionClass} visible`;
+            resultTitle.textContent = t[decisionTextKey];
+            
+            const markerPosition = Math.min(Math.max(probability, 0), 1) * 100;
+            meterMarker.style.left = `calc(${markerPosition}% - 3px)`;
+            meterLabel.style.left = `${markerPosition}%`;
+            meterLabel.textContent = `${(probability * 100).toFixed(0)}%`;
+            
+            displayDrivers(impacts);
+            resultContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function displayDrivers(impacts) {
+            const { positiveDrivers, negativeDrivers } = CONFIG.dom;
+            const t = translations[window.currentLang];
+            positiveDrivers.innerHTML = '';
+            negativeDrivers.innerHTML = '';
+
+            const sortedDrivers = Object.entries(impacts).filter(([, val]) => Math.abs(val) > 0.01).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]));
+            if (sortedDrivers.length === 0) return;
+
+            const maxAbsImpact = Math.abs(sortedDrivers[0][1]);
+
+            sortedDrivers.forEach(([key, value]) => {
+                const container = value >= 0 ? positiveDrivers : negativeDrivers;
+                const barWidth = (maxAbsImpact > 0) ? (Math.abs(value) / maxAbsImpact) * 100 : 0;
+                const label = t.featureNames[key] || key;
+                
+                const itemHTML = `
+                    <div class="driver-item">
+                        <span class="driver-label">${label}</span>
+                        <div class="driver-bar-container">
+                            <div class="driver-bar ${value >= 0 ? 'positive' : 'negative'}" style="width: ${barWidth}%;"></div>
+                        </div>
+                    </div>`;
+                container.innerHTML += itemHTML;
+            });
+        }
+
+        function setLoading(isLoading) {
+            const btn = CONFIG.dom.calculateBtn;
+            btn.disabled = isLoading;
+            const btnText = translations[window.currentLang].calculateButton;
+            btn.textContent = isLoading ? `${btnText}...` : btnText;
+        }
+
+        function switchLanguage(lang) {
+            window.currentLang = lang;
+            localStorage.setItem('language', lang);
+            const t = translations[lang];
+            document.querySelectorAll('[data-translate]').forEach(el => {
+                const key = el.dataset.translate;
+                if(t[key]) el.textContent = t[key];
+            });
+        }
+        window.switchLanguage = switchLanguage;
+
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark-mode');
+            const isDarkMode = document.body.classList.contains('dark-mode');
+            localStorage.setItem('darkMode', isDarkMode ? 'enabled' : 'disabled');
+            document.getElementById('darkModeToggle').textContent = isDarkMode ? '☀️' : '🌙';
+        }
+
+    </script>
+</body>
+</html>
