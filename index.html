@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LVO Risk Calculator</title>
+    <meta name="theme-color" content="#3498db"/>
+    <!-- Standard link to the manifest file -->
+    <link rel="manifest" href="manifest.json">
     <style>
         :root {
             --primary-color: #3498db; --primary-hover: #2980b9; --background-color: #f4f7f9;
@@ -167,6 +170,16 @@
 
         // --- INITIALIZATION ---
         document.addEventListener('DOMContentLoaded', () => {
+            // Register service worker for PWA functionality
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('./service-worker.js') // Correctly referencing the external file
+                    .then(registration => {
+                        console.log('Service Worker registered with scope:', registration.scope);
+                    }).catch(error => {
+                        console.error('Service Worker registration failed:', error);
+                    });
+            }
+
             const savedLang = localStorage.getItem('language');
             const browserLang = navigator.language.startsWith('de') ? 'de' : 'en';
             switchLanguage(savedLang || browserLang);
